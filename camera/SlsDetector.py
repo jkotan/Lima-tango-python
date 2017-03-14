@@ -115,14 +115,26 @@ class SlsDetectorClass(PyTango.DeviceClass):
 #----------------------------------------------------------------------------
 _SlsDetectorCam = None
 _SlsDetectorHwInter = None
+_SlsDetectorEiger = None
+_SlsDetectorCorrection = None
 _SlsDetectorControl = None
 
 def get_control(config_fname, **keys) :
-    global _SlsDetectorCam, _SlsDetectorHwInter, _SlsDetectorControl
+    global _SlsDetectorCam, _SlsDetectorHwInter, _SlsDetectorEiger
+    global _SlsDetectorCorrection, _SlsDetectorControl
     if _SlsDetectorControl is None:
 	_SlsDetectorCam = SlsDetectorHw.Camera(config_fname)
         _SlsDetectorHwInter = SlsDetectorHw.Interface(_SlsDetectorCam)
+        if _SlsDetectorCam.getType() == SlsDetectorHw.Camera.EigerDet:
+            _SlsDetectorEiger = SlsDetectorHw.Eiger(_SlsDetectorCam)
+            _SlsDetectorCorrection = _SlsDetectorEiger.createCorrectionTask()
+        else:
+            raise ValueError("Unknown detector type: %s" %
+                             _SlsDetectorCam.getType())
         _SlsDetectorControl = Core.CtControl(_SlsDetectorHwInter)
+        if _SlsDetectorCorrection:
+            _SlsDetectorControl.setReconstructionTask(_SlsDetectorCorrection)
+
     return _SlsDetectorControl 
 
 def get_tango_specific_class_n_device():
