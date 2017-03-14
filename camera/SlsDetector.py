@@ -75,11 +75,49 @@ class SlsDetector(PyTango.Device_4Impl):
     def getAttrStringValueList(self, attr_name):
         return get_attr_string_value_list(self, attr_name)
 
-    def __getattr__(self,name) :
+    def __getattr__(self,name):
         return get_attr_4u(self, name, _SlsDetectorCam)
 
-    def read_config_fname(self, attr) :
+    @Core.DEB_MEMBER_FUNCT
+    def read_config_fname(self, attr):
+        deb.Return("config_fname=%s" % self.config_fname)
         attr.set_value(self.config_fname)
+
+    @Core.DEB_MEMBER_FUNCT
+    def putCmd(self, cmd):
+        deb.Param("cmd=%s" % cmd)
+        _SlsDetectorCam.putCmd(cmd);
+
+    @Core.DEB_MEMBER_FUNCT
+    def getCmd(self, cmd):
+        deb.Param("cmd=%s" % cmd)
+        resp = _SlsDetectorCam.getCmd(cmd);
+        deb.Return("resp=%s" % resp)
+        return resp
+
+    @Core.DEB_MEMBER_FUNCT
+    def read_high_voltage(self, attr):
+        hvolt = _SlsDetectorCam.getHighVoltage()
+        deb.Return("hvolt=%s" % hvolt)
+        attr.set_value(hvolt)
+
+    @Core.DEB_MEMBER_FUNCT
+    def write_high_voltage(self, attr):
+        hvolt = attr.get_write_value()
+        deb.Param("hvolt=%s" % hvolt)
+        _SlsDetectorCam.setHighVoltage(hvolt)
+
+    @Core.DEB_MEMBER_FUNCT
+    def read_energy_threshold(self, attr):
+        thres = _SlsDetectorCam.getEnergyThreshold()
+        deb.Return("thres=%s" % thres)
+        attr.set_value(thres)
+
+    @Core.DEB_MEMBER_FUNCT
+    def write_energy_threshold(self, attr):
+        thres = attr.get_write_value()
+        deb.Param("thres=%s" % thres)
+        _SlsDetectorCam.setEnergyThreshold(thres)
 
 
 class SlsDetectorClass(PyTango.DeviceClass):
@@ -96,6 +134,12 @@ class SlsDetectorClass(PyTango.DeviceClass):
         'getAttrStringValueList':
         [[PyTango.DevString, "Attribute name"],
          [PyTango.DevVarStringArray, "Authorized String value list"]],
+        'putCmd':
+        [[PyTango.DevString, "SlsDetector command"],
+         [PyTango.DevVoid, ""]],
+        'getCmd':
+        [[PyTango.DevString, "SlsDetector command"],
+         [PyTango.DevString, "SlsDetector response"]],
         }
 
     attr_list = {
@@ -103,6 +147,14 @@ class SlsDetectorClass(PyTango.DeviceClass):
         [[PyTango.DevString,
           PyTango.SCALAR,
           PyTango.READ]],
+        'high_voltage':
+        [[PyTango.DevLong,
+          PyTango.SCALAR,
+          PyTango.READ_WRITE]],
+        'energy_threshold':
+        [[PyTango.DevLong,
+          PyTango.SCALAR,
+          PyTango.READ_WRITE]],
         }
 
     def __init__(self,name) :
