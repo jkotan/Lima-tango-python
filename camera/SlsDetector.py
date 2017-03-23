@@ -120,16 +120,16 @@ class SlsDetector(PyTango.Device_4Impl):
         _SlsDetectorCam.setHighVoltage(hvolt)
 
     @Core.DEB_MEMBER_FUNCT
-    def read_energy_threshold(self, attr):
-        thres = _SlsDetectorCam.getEnergyThreshold()
+    def read_threshold_energy(self, attr):
+        thres = _SlsDetectorCam.getThresholdEnergy()
         deb.Return("thres=%s" % thres)
         attr.set_value(thres)
 
     @Core.DEB_MEMBER_FUNCT
-    def write_energy_threshold(self, attr):
+    def write_threshold_energy(self, attr):
         thres = attr.get_write_value()
         deb.Param("thres=%s" % thres)
-        _SlsDetectorCam.setEnergyThreshold(thres)
+        _SlsDetectorCam.setThresholdEnergy(thres)
 
 
 class SlsDetectorClass(PyTango.DeviceClass):
@@ -167,7 +167,7 @@ class SlsDetectorClass(PyTango.DeviceClass):
         [[PyTango.DevBoolean,
           PyTango.SCALAR,
           PyTango.READ_WRITE]],
-        'energy_threshold':
+        'threshold_energy':
         [[PyTango.DevLong,
           PyTango.SCALAR,
           PyTango.READ_WRITE]],
