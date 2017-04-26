@@ -84,16 +84,22 @@ class SlsDetector(PyTango.Device_4Impl):
         attr.set_value(self.config_fname)
 
     @Core.DEB_MEMBER_FUNCT
-    def read_save_raw(self, attr):
-        raw = _SlsDetectorCam.getSaveRaw()
+    def read_hostname_list(self, attr):
+        hostname_list = _SlsDetectorCam.getHostnameList()
+        deb.Return("config_fname=%s" % hostname_list)
+        attr.set_value(hostname_list)
+
+    @Core.DEB_MEMBER_FUNCT
+    def read_raw_mode(self, attr):
+        raw = _SlsDetectorCam.getRawMode()
         deb.Return("raw=%s" % raw)
         attr.set_value(raw)
 
     @Core.DEB_MEMBER_FUNCT
-    def write_save_raw(self, attr):
+    def write_raw_mode(self, attr):
         raw = attr.get_write_value()
         deb.Param("raw=%s" % raw)
-        _SlsDetectorCam.setSaveRaw(raw)
+        _SlsDetectorCam.setRawMode(raw)
 
     @Core.DEB_MEMBER_FUNCT
     def putCmd(self, cmd):
@@ -159,11 +165,15 @@ class SlsDetectorClass(PyTango.DeviceClass):
         [[PyTango.DevString,
           PyTango.SCALAR,
           PyTango.READ]],
+        'hostname_list':
+        [[PyTango.DevString,
+          PyTango.SPECTRUM,
+          PyTango.READ, 64]],
         'high_voltage':
         [[PyTango.DevLong,
           PyTango.SCALAR,
           PyTango.READ_WRITE]],
-        'save_raw':
+        'raw_mode':
         [[PyTango.DevBoolean,
           PyTango.SCALAR,
           PyTango.READ_WRITE]],
