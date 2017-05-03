@@ -57,6 +57,9 @@ class SlsDetector(PyTango.Device_4Impl):
         PyTango.Device_4Impl.__init__(self,*args)
         self.init_device()
 
+        self.cam = _SlsDetectorCam
+        self.model = self.cam.getModel()
+
 #------------------------------------------------------------------
 #    Device destructor
 #------------------------------------------------------------------
@@ -76,7 +79,7 @@ class SlsDetector(PyTango.Device_4Impl):
         return get_attr_string_value_list(self, attr_name)
 
     def __getattr__(self,name):
-        return get_attr_4u(self, name, _SlsDetectorCam)
+        return get_attr_4u(self, name, self.cam)
 
     @Core.DEB_MEMBER_FUNCT
     def read_config_fname(self, attr):
@@ -85,13 +88,13 @@ class SlsDetector(PyTango.Device_4Impl):
 
     @Core.DEB_MEMBER_FUNCT
     def read_hostname_list(self, attr):
-        hostname_list = _SlsDetectorCam.getHostnameList()
+        hostname_list = self.cam.getHostnameList()
         deb.Return("config_fname=%s" % hostname_list)
         attr.set_value(hostname_list)
 
     @Core.DEB_MEMBER_FUNCT
     def read_raw_mode(self, attr):
-        raw = _SlsDetectorCam.getRawMode()
+        raw = self.cam.getRawMode()
         deb.Return("raw=%s" % raw)
         attr.set_value(raw)
 
@@ -99,23 +102,23 @@ class SlsDetector(PyTango.Device_4Impl):
     def write_raw_mode(self, attr):
         raw = attr.get_write_value()
         deb.Param("raw=%s" % raw)
-        _SlsDetectorCam.setRawMode(raw)
+        self.cam.setRawMode(raw)
 
     @Core.DEB_MEMBER_FUNCT
     def putCmd(self, cmd):
         deb.Param("cmd=%s" % cmd)
-        _SlsDetectorCam.putCmd(cmd);
+        self.cam.putCmd(cmd);
 
     @Core.DEB_MEMBER_FUNCT
     def getCmd(self, cmd):
         deb.Param("cmd=%s" % cmd)
-        resp = _SlsDetectorCam.getCmd(cmd);
+        resp = self.cam.getCmd(cmd);
         deb.Return("resp=%s" % resp)
         return resp
 
     @Core.DEB_MEMBER_FUNCT
     def read_high_voltage(self, attr):
-        hvolt = _SlsDetectorCam.getHighVoltage()
+        hvolt = self.cam.getHighVoltage()
         deb.Return("hvolt=%s" % hvolt)
         attr.set_value(hvolt)
 
@@ -123,11 +126,11 @@ class SlsDetector(PyTango.Device_4Impl):
     def write_high_voltage(self, attr):
         hvolt = attr.get_write_value()
         deb.Param("hvolt=%s" % hvolt)
-        _SlsDetectorCam.setHighVoltage(hvolt)
+        self.cam.setHighVoltage(hvolt)
 
     @Core.DEB_MEMBER_FUNCT
     def read_threshold_energy(self, attr):
-        thres = _SlsDetectorCam.getThresholdEnergy()
+        thres = self.cam.getThresholdEnergy()
         deb.Return("thres=%s" % thres)
         attr.set_value(thres)
 
@@ -135,7 +138,7 @@ class SlsDetector(PyTango.Device_4Impl):
     def write_threshold_energy(self, attr):
         thres = attr.get_write_value()
         deb.Param("thres=%s" % thres)
-        _SlsDetectorCam.setThresholdEnergy(thres)
+        self.cam.setThresholdEnergy(thres)
 
 
 class SlsDetectorClass(PyTango.DeviceClass):
