@@ -40,6 +40,7 @@
 #=============================================================================
 #
 import time, string
+import numpy as np
 import PyTango
 from Lima import Core
 from Lima import SlsDetector as SlsDetectorHw
@@ -62,10 +63,10 @@ class SlsDetector(PyTango.Device_4Impl):
         self.model = self.cam.getModel()
 
         nb_modules = self.cam.getNbDetSubModules()
-        name_list, dac_idx_list = self.model.getDACInfo()
+        name_list, idx_list = self.model.getDACInfo()
         attr_name_list = map(lambda n: 'dac_' + n, name_list)
-        self.dac_attr_idx_list = zip(attr_name_list, dac_idx_list)
-        for name, index in self.dac_attr_idx_list:
+        self.dac_attr_idx_list = zip(attr_name_list, idx_list)
+        for name in attr_name_list:
             attr_data_dict = {
                 'name': name, 
                 'dtype': PyTango.DevLong,
@@ -77,13 +78,14 @@ class SlsDetector(PyTango.Device_4Impl):
             attr_data = PyTango.AttrData.from_dict(attr_data_dict)
             self.add_attribute(attr_data)
 
-        name_list, adc_idx_list = self.model.getADCInfo()
+        name_list, idx_list, factor_list, min_val_list = self.model.getADCInfo()
         attr_name_list = map(lambda n: 'adc_' + n, name_list)
-        self.adc_attr_idx_list = zip(attr_name_list, adc_idx_list)
-        for name, index in self.adc_attr_idx_list:
+        data_list = zip(idx_list, factor_list, min_val_list)
+        self.adc_attr_idx_list = zip(attr_name_list, data_list)
+        for name in attr_name_list:
             attr_data_dict = {
                 'name': name, 
-                'dtype': PyTango.DevLong,
+                'dtype': PyTango.DevDouble,
                 'dformat': PyTango.SPECTRUM,
                 'max_dim_x': nb_modules,
                 'fget': self.read_adc,
@@ -156,25 +158,29 @@ class SlsDetector(PyTango.Device_4Impl):
     @Core.DEB_MEMBER_FUNCT
     def read_dac(self, attr):
         idx = dict(self.dac_attr_idx_list)[attr.get_name()]
-        dac_list = self.cam.getDACList(idx)
-        deb.Return("dac_list=%s" % dac_list)
-        attr.set_value(dac_list)
+        val_list = self.cam.getDACList(idx)
+        deb.Return("val_list=%s" % val_list)
+        attr.set_value(val_list)
 
     @Core.DEB_MEMBER_FUNCT
     def write_dac(self, attr):
         idx = dict(self.dac_attr_idx_list)[attr.get_name()]
-        dac_list = attr.get_write_value()
-        deb.Param("dac_list=%s" % dac_list)
-        nb_dac = len(dac_list)
-        if nb_dac == 1:
+        val_list = attr.get_write_value()
+        deb.Param("val_list=%s" % val_list)
+        msg = None
+        nb_dac = len(val_list)
+        if (val_list < 0).sum() == nb_dac:
+            msg = 'Invalid %s: %s' % (attr.get_name(), val_list)
+        elif nb_dac == 1:
             dac_idx_list = [-1]
         elif nb_dac == self.cam.getNbDetSubModules():
             dac_idx_list = range(nb_dac)
         else:
-            msg = 'Invalid %s length: %s' % (attr.get_name(), dac_list)
+            msg = 'Invalid %s length: %s' % (attr.get_name(), val_list)
+        if msg:
             deb.Error(msg)
             raise ValueError(msg)
-        for i, dac_val in zip(dac_idx_list, dac_list):
+        for i, dac_val in zip(dac_idx_list, val_list):
             if dac_val >= 0:
                 self.cam.setDAC(i, idx, dac_val)
 
@@ -186,10 +192,11 @@ class SlsDetector(PyTango.Device_4Impl):
 
     @Core.DEB_MEMBER_FUNCT
     def read_adc(self, attr):
-        idx = dict(self.adc_attr_idx_list)[attr.get_name()]
-        adc_list = self.cam.getADCList(idx)
-        deb.Return("adc_list=%s" % adc_list)
-        attr.set_value(adc_list)
+        idx, factor, min_val = dict(self.adc_attr_idx_list)[attr.get_name()]
+        val_list = self.cam.getADCList(idx)
+        out_arr = np.array(val_list, 'float64') * factor + min_val
+        deb.Return("out_arr=%s" % out_arr)
+        attr.set_value(out_arr)
 
     @Core.DEB_MEMBER_FUNCT
     def read_threshold_energy(self, attr):
