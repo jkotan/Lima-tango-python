@@ -55,6 +55,8 @@ class SlsDetector(PyTango.Device_4Impl):
 #    Device constructor
 #------------------------------------------------------------------
 
+    MiliVoltSuffix = '_mv'
+
     def __init__(self,*args) :
         PyTango.Device_4Impl.__init__(self,*args)
         self.init_device()
@@ -63,10 +65,11 @@ class SlsDetector(PyTango.Device_4Impl):
         self.model = self.cam.getModel()
 
         nb_modules = self.cam.getNbDetSubModules()
-        name_list, idx_list = self.model.getDACInfo()
+        name_list, idx_list, mili_volt_list = self.model.getDACInfo()
         attr_name_list = map(lambda n: 'dac_' + n, name_list)
-        self.dac_attr_idx_list = zip(attr_name_list, idx_list)
-        for name in attr_name_list:
+        data_list = zip(idx_list, mili_volt_list)
+        self.dac_attr_idx_list = zip(attr_name_list, data_list)
+        for name, data in self.dac_attr_idx_list:
             attr_data_dict = {
                 'name': name, 
                 'dtype': PyTango.DevLong,
@@ -78,11 +81,17 @@ class SlsDetector(PyTango.Device_4Impl):
             attr_data = PyTango.AttrData.from_dict(attr_data_dict)
             self.add_attribute(attr_data)
 
+            idx, has_mv = data
+            if has_mv:
+                attr_data_dict['name'] = name + self.MiliVoltSuffix
+                attr_data = PyTango.AttrData.from_dict(attr_data_dict)
+                self.add_attribute(attr_data)
+
         name_list, idx_list, factor_list, min_val_list = self.model.getADCInfo()
         attr_name_list = map(lambda n: 'adc_' + n, name_list)
         data_list = zip(idx_list, factor_list, min_val_list)
         self.adc_attr_idx_list = zip(attr_name_list, data_list)
-        for name in attr_name_list:
+        for name, data in self.adc_attr_idx_list:
             attr_data_dict = {
                 'name': name, 
                 'dtype': PyTango.DevDouble,
@@ -151,22 +160,41 @@ class SlsDetector(PyTango.Device_4Impl):
 
     @Core.DEB_MEMBER_FUNCT
     def read_dac_name_list(self, attr):
-        dac_name_list = zip(*self.dac_attr_idx_list)[0]
+        dac_name_list = [n for n, (i, m) in self.dac_attr_idx_list]
         deb.Return("dac_name_list=%s" % (dac_name_list,))
         attr.set_value(dac_name_list)
 
     @Core.DEB_MEMBER_FUNCT
+    def read_dac_name_list_mv(self, attr):
+        mv = self.MiliVoltSuffix
+        dac_name_list = [n + mv for n, (i, m) in self.dac_attr_idx_list if m]
+        deb.Return("dac_name_list=%s" % (dac_name_list,))
+        attr.set_value(dac_name_list)
+
+    @Core.DEB_MEMBER_FUNCT
+    def get_dac_name_mv(self, dac_name):
+        mv = self.MiliVoltSuffix
+        is_mv = (dac_name[-len(mv):] == mv)
+        if is_mv:
+            dac_name = dac_name[:-len(mv)]
+        return dac_name, is_mv
+
+    @Core.DEB_MEMBER_FUNCT
     def read_dac(self, attr):
-        idx = dict(self.dac_attr_idx_list)[attr.get_name()]
-        val_list = self.cam.getDACList(idx)
+        dac_name, mili_volt = self.get_dac_name_mv(attr.get_name())
+        deb.Param("dac_name=%s, mili_volt=%s" % (dac_name, mili_volt))
+        idx, has_mv = dict(self.dac_attr_idx_list)[dac_name]
+        val_list = self.cam.getDACList(idx, mili_volt)
         deb.Return("val_list=%s" % val_list)
         attr.set_value(val_list)
 
     @Core.DEB_MEMBER_FUNCT
     def write_dac(self, attr):
-        idx = dict(self.dac_attr_idx_list)[attr.get_name()]
+        dac_name, mili_volt = self.get_dac_name_mv(attr.get_name())
+        idx, has_mv = dict(self.dac_attr_idx_list)[dac_name]
         val_list = attr.get_write_value()
-        deb.Param("val_list=%s" % val_list)
+        deb.Param("dac_name=%s, mili_volt=%s, val_list=%s" % 
+                  (dac_name, mili_volt, val_list))
         msg = None
         nb_dac = len(val_list)
         if (val_list < 0).sum() == nb_dac:
@@ -182,7 +210,7 @@ class SlsDetector(PyTango.Device_4Impl):
             raise ValueError(msg)
         for i, dac_val in zip(dac_idx_list, val_list):
             if dac_val >= 0:
-                self.cam.setDAC(i, idx, dac_val)
+                self.cam.setDAC(i, idx, dac_val, mili_volt)
 
     @Core.DEB_MEMBER_FUNCT
     def read_adc_name_list(self, attr):
@@ -243,6 +271,10 @@ class SlsDetectorClass(PyTango.DeviceClass):
           PyTango.SPECTRUM,
           PyTango.READ, 64]],
         'dac_name_list':
+        [[PyTango.DevString,
+          PyTango.SPECTRUM,
+          PyTango.READ, 64]],
+        'dac_name_list_mv':
         [[PyTango.DevString,
           PyTango.SPECTRUM,
           PyTango.READ, 64]],
