@@ -42,9 +42,27 @@
 import time, string
 import numpy as np
 import PyTango
+from collections import OrderedDict
+
 from Lima import Core
 from Lima import SlsDetector as SlsDetectorHw
 from AttrHelper import get_attr_4u, get_attr_string_value_list
+
+def ConstListAttr(nl, vl=None, Defs=SlsDetectorHw.Defs):
+    def g(x):
+        n = ''
+        was_cap = True
+        for c in x:
+            cap = c.isupper()
+            sep = '_' if cap and not was_cap else ''
+            n += sep + c.upper()
+            was_cap = cap or not c.isalpha()
+        return n
+
+    if vl is None:
+        vl = [getattr(Defs, n) for n in nl]
+    return OrderedDict([(g(n), v) for n, v in zip(nl, vl)])
+
 
 class SlsDetector(PyTango.Device_4Impl):
 
@@ -61,9 +79,34 @@ class SlsDetector(PyTango.Device_4Impl):
         PyTango.Device_4Impl.__init__(self,*args)
         self.init_device()
 
+#------------------------------------------------------------------
+#    Device destructor
+#------------------------------------------------------------------
+    def delete_device(self):
+        pass
+
+#------------------------------------------------------------------
+#    Device initialization
+#------------------------------------------------------------------
+    @Core.DEB_MEMBER_FUNCT
+    def init_device(self):
+        self.set_state(PyTango.DevState.ON)
+        self.get_device_properties(self.get_device_class())
+
         self.cam = _SlsDetectorCam
         self.model = self.cam.getModel()
 
+        self.init_list_attr()
+        self.init_dac_adc_attr()
+
+    def init_list_attr(self):
+        nl = ['FullSpeed', 'HalfSpeed', 'QuarterSpeed', 'SuperSlowSpeed']
+        self.__ClockDiv = ConstListAttr(nl)
+
+        vl, nl = self.cam.getValidReadoutFlags()
+        self.__ReadoutFlags = ConstListAttr(nl, vl)
+
+    def init_dac_adc_attr(self):
         nb_modules = self.cam.getNbDetSubModules()
         name_list, idx_list, mili_volt_list = self.model.getDACInfo()
         attr_name_list = map(lambda n: 'dac_' + n, name_list)
@@ -102,20 +145,6 @@ class SlsDetector(PyTango.Device_4Impl):
             attr_data = PyTango.AttrData.from_dict(attr_data_dict)
             self.add_attribute(attr_data)
 
-#------------------------------------------------------------------
-#    Device destructor
-#------------------------------------------------------------------
-    def delete_device(self):
-        pass
-
-#------------------------------------------------------------------
-#    Device initialization
-#------------------------------------------------------------------
-    @Core.DEB_MEMBER_FUNCT
-    def init_device(self):
-        self.set_state(PyTango.DevState.ON)
-        self.get_device_properties(self.get_device_class())
-
     @Core.DEB_MEMBER_FUNCT
     def getAttrStringValueList(self, attr_name):
         return get_attr_string_value_list(self, attr_name)
@@ -127,24 +156,6 @@ class SlsDetector(PyTango.Device_4Impl):
     def read_config_fname(self, attr):
         deb.Return("config_fname=%s" % self.config_fname)
         attr.set_value(self.config_fname)
-
-    @Core.DEB_MEMBER_FUNCT
-    def read_hostname_list(self, attr):
-        hostname_list = self.cam.getHostnameList()
-        deb.Return("config_fname=%s" % hostname_list)
-        attr.set_value(hostname_list)
-
-    @Core.DEB_MEMBER_FUNCT
-    def read_raw_mode(self, attr):
-        raw = self.cam.getRawMode()
-        deb.Return("raw=%s" % raw)
-        attr.set_value(raw)
-
-    @Core.DEB_MEMBER_FUNCT
-    def write_raw_mode(self, attr):
-        raw = attr.get_write_value()
-        deb.Param("raw=%s" % raw)
-        self.cam.setRawMode(raw)
 
     @Core.DEB_MEMBER_FUNCT
     def putCmd(self, cmd):
@@ -174,7 +185,7 @@ class SlsDetector(PyTango.Device_4Impl):
     @Core.DEB_MEMBER_FUNCT
     def get_dac_name_mv(self, dac_name):
         mv = self.MiliVoltSuffix
-        is_mv = (dac_name[-len(mv):] == mv)
+        is_mv = dac_name.endswith(mv)
         if is_mv:
             dac_name = dac_name[:-len(mv)]
         return dac_name, is_mv
@@ -226,18 +237,6 @@ class SlsDetector(PyTango.Device_4Impl):
         deb.Return("out_arr=%s" % out_arr)
         attr.set_value(out_arr)
 
-    @Core.DEB_MEMBER_FUNCT
-    def read_threshold_energy(self, attr):
-        thres = self.cam.getThresholdEnergy()
-        deb.Return("thres=%s" % thres)
-        attr.set_value(thres)
-
-    @Core.DEB_MEMBER_FUNCT
-    def write_threshold_energy(self, attr):
-        thres = attr.get_write_value()
-        deb.Param("thres=%s" % thres)
-        self.cam.setThresholdEnergy(thres)
-
 
 class SlsDetectorClass(PyTango.DeviceClass):
 
@@ -288,6 +287,14 @@ class SlsDetectorClass(PyTango.DeviceClass):
           PyTango.READ_WRITE]],
         'threshold_energy':
         [[PyTango.DevLong,
+          PyTango.SCALAR,
+          PyTango.READ_WRITE]],
+        'clock_div':
+        [[PyTango.DevString,
+          PyTango.SCALAR,
+          PyTango.READ_WRITE]],
+        'readout_flags':
+        [[PyTango.DevString,
           PyTango.SCALAR,
           PyTango.READ_WRITE]],
         }
