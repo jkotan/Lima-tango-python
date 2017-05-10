@@ -106,6 +106,10 @@ class SlsDetector(PyTango.Device_4Impl):
         vl, nl = self.cam.getValidReadoutFlags()
         self.__ReadoutFlags = ConstListAttr(nl, vl)
 
+        nl = ['PixelDepth4', 'PixelDepth8', 'PixelDepth16', 'PixelDepth32']
+        bdl = map(lambda x: getattr(self.cam, x), nl)
+        self.__PixelDepth = OrderedDict([(str(bd), int(bd)) for bd in bdl])
+
     def init_dac_adc_attr(self):
         nb_modules = self.cam.getNbDetSubModules()
         name_list, idx_list, mili_volt_list = self.model.getDACInfo()
@@ -281,6 +285,10 @@ class SlsDetectorClass(PyTango.DeviceClass):
         [[PyTango.DevString,
           PyTango.SPECTRUM,
           PyTango.READ, 64]],
+        'pixel_depth':
+        [[PyTango.DevString,
+          PyTango.SCALAR,
+          PyTango.READ_WRITE]],
         'raw_mode':
         [[PyTango.DevBoolean,
           PyTango.SCALAR,
