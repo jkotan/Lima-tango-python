@@ -207,25 +207,40 @@ class SlsDetector(PyTango.Device_4Impl):
     def write_dac(self, attr):
         dac_name, mili_volt = self.get_dac_name_mv(attr.get_name())
         idx, has_mv = dict(self.dac_attr_idx_list)[dac_name]
+        deb.Param("dac_name=%s, mili_volt=%s" % (dac_name, mili_volt))
+        for i, val in self.get_write_mod_idx_val_list(attr):
+            self.cam.setDAC(i, idx, val, mili_volt)
+
+    @Core.DEB_MEMBER_FUNCT
+    def read_all_trim_bits(self, attr):
+        val_list = self.cam.getAllTrimBitsList()
+        deb.Return("val_list=%s" % val_list)
+        attr.set_value(val_list)
+
+    @Core.DEB_MEMBER_FUNCT
+    def write_all_trim_bits(self, attr):
+        for i, val in self.get_write_mod_idx_val_list(attr):
+            self.cam.setAllTrimBits(i, val)
+
+    @Core.DEB_MEMBER_FUNCT
+    def get_write_mod_idx_val_list(self, attr):
+        attr_name = attr.get_name()
         val_list = attr.get_write_value()
-        deb.Param("dac_name=%s, mili_volt=%s, val_list=%s" % 
-                  (dac_name, mili_volt, val_list))
+        deb.Param("attr_name=%s, val_list=%s" % (attr_name, val_list))
         msg = None
-        nb_dac = len(val_list)
-        if (val_list < 0).sum() == nb_dac:
-            msg = 'Invalid %s: %s' % (attr.get_name(), val_list)
-        elif nb_dac == 1:
-            dac_idx_list = [-1]
-        elif nb_dac == self.cam.getNbDetSubModules():
-            dac_idx_list = range(nb_dac)
+        nb_val = len(val_list)
+        if (val_list < 0).sum() == nb_val:
+            msg = 'Invalid %s: %s' % (attr_name, val_list)
+        elif nb_val == 1:
+            mod_idx_list = [-1]
+        elif nb_val == self.cam.getNbDetSubModules():
+            mod_idx_list = range(nb_val)
         else:
-            msg = 'Invalid %s length: %s' % (attr.get_name(), val_list)
+            msg = 'Invalid %s length: %s' % (att_name, val_list)
         if msg:
             deb.Error(msg)
             raise ValueError(msg)
-        for i, dac_val in zip(dac_idx_list, val_list):
-            if dac_val >= 0:
-                self.cam.setDAC(i, idx, dac_val, mili_volt)
+        return [(i, val) for i, val in zip(mod_idx_list, val_list) if val >= 0]
 
     @Core.DEB_MEMBER_FUNCT
     def read_adc_name_list(self, attr):
@@ -297,6 +312,10 @@ class SlsDetectorClass(PyTango.DeviceClass):
         [[PyTango.DevLong,
           PyTango.SCALAR,
           PyTango.READ_WRITE]],
+        'all_trim_bits':
+        [[PyTango.DevLong,
+          PyTango.SPECTRUM,
+          PyTango.READ_WRITE, 64]],
         'clock_div':
         [[PyTango.DevString,
           PyTango.SCALAR,
