@@ -1106,8 +1106,10 @@ class LimaCCDs(PyTango.Device_4Impl) :
         status = self.__control.getStatus()
         last_img_ready = status.ImageCounters.LastImageReady
         image = self.__control.ReadImage(last_img_ready)
-        data = self._image_2_data_array(image, self.DataArrayCategory.Image)
-        attr.set_value('DATA_ARRAY', data)
+        # workaround for PyTango #147
+        self._lidata = self._image_2_data_array(
+            image, self.DataArrayCategory.Image)
+        attr.set_value('DATA_ARRAY', self._lidata)
 
     ## @brief last image acquired
     #
